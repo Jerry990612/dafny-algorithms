@@ -335,48 +335,60 @@ method Balance(l: RBTree, data: int, r: RBTree) returns (ret: RBTree)
   }
 }
 
-method InsertAux(node: RBTree, x: int) returns (ret: RBTree)
+method InsertAux(node: RBTree, x: int) returns (ret: RBTree, computationsPow2: int)
   requires rbTree(node);
   ensures quasiRbTree(ret);
   ensures Elements(ret) == Elements(node) + multiset{x};
   ensures blackHeight(node) == blackHeight(ret);
   ensures isBlack(node) ==> rbTree(ret);
+  ensures |Elements(ret)| == |Elements(node)| + 1;
+  ensures computationsPow2 <= |Elements(ret)|;
 {
+  var newLeft, newRight;
+
   match node
   case Leaf =>
     ret := Node(Red, Leaf, x, Leaf);
+    computationsPow2 := 1;
   case Node(lbl, left, data, right) =>
     match lbl
     case Black =>
       if (x <= data) {
-        var newLeft := InsertAux(left, x);
+        newLeft, computationsPow2 := InsertAux(left, x);
+        computationsPow2 := computationsPow2 * 2;
 
         ret := Balance(newLeft, data, right);
       }
       else {
-        var newRight := InsertAux(right, x);
+        newRight, computationsPow2 := InsertAux(right, x);
+        computationsPow2 := computationsPow2 * 2;
 
         ret := Balance(left, data, newRight);
       }
     case Red =>
       if (x <= data) {
-        var newLeft := InsertAux(left, x);
+        newLeft, computationsPow2 := InsertAux(left, x);
+        computationsPow2 := 0;
 
         ret := Node(Red, newLeft, data, right);
       }
       else {
-        var newRight := InsertAux(right, x);
+        newRight, computationsPow2 := InsertAux(right, x);
+        computationsPow2 := 0;
 
         ret := Node(Red, left, data, newRight);
       }
 }
 
-method Insert(node: RBTree, x: int) returns (ret: RBTree)
+method Insert(node: RBTree, x: int) returns (ret: RBTree, computationsPow2: int)
   requires rbTree(node);
   ensures rbTree(ret);
   ensures Elements(ret) == Elements(node) + multiset{x};
+  ensures computationsPow2 <= |Elements(ret)|;
 {
-  var newNode := InsertAux(node, x);
+  var newNode;
+
+  newNode, computationsPow2 := InsertAux(node, x);
 
   match newNode
   case Leaf =>
@@ -404,7 +416,7 @@ method Traverse(node: RBTree) returns (ret: seq<int>)
     ret := seqLeft + [data] + seqRight;
 }
 
-method Sort(a: array<int>)
+method Sort(a: array<int>) returns (computations: int)
   modifies a;
   requires a != null;
   requires a.Length > 0;
@@ -414,6 +426,7 @@ method Sort(a: array<int>)
 {
   var i := 0;
   var node := Leaf;
+  var computationsPow2;
 
   while (i < a.Length)
   invariant 0 <= i <= a.Length;
@@ -421,7 +434,7 @@ method Sort(a: array<int>)
   invariant forall j :: 0 <= j <= a.Length ==> a[0..j] == old(a[0..j]);
   invariant multiset(old(a[0..i])) == Elements(node);
   {
-    node := Insert(node, a[i]);
+    node, computationsPow2 := Insert(node, a[i]);
 
     i := i + 1;
   }
